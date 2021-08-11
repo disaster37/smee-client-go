@@ -61,6 +61,8 @@ func Notify(uri string, evCh chan<- *Event) error {
 		return ErrNilChan
 	}
 
+	log.Debug("Notify started")
+
 	req, err := liveReq("GET", uri, nil)
 	if err != nil {
 		return fmt.Errorf("error getting sse request: %v", err)
@@ -70,6 +72,8 @@ func Notify(uri string, evCh chan<- *Event) error {
 	if err != nil {
 		return fmt.Errorf("error performing request for %s: %v", uri, err)
 	}
+
+	log.Debugf("Response: %s", res.Status)
 
 	br := bufio.NewReader(res.Body)
 	defer res.Body.Close()
