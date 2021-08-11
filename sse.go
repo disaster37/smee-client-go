@@ -57,33 +57,24 @@ var GetReq = func(verb, uri string, body io.Reader) (*http.Request, error) {
 //down the channel when recieved, until the stream is closed. It will then
 //close the stream. This is blocking, and so you will likely want to call this
 //in a new goroutine (via `go Notify(..)`)
-func Notify(uri string, evCh chan<- *Event) error {
+func Notify(uri string, evCh chan<- *Event) {
 	if evCh == nil {
-		return ErrNilChan
+		panic(ErrNilChan)
 	}
 
 	log.Debug("Notify started")
 
 	req, err := liveReq("GET", uri, nil)
 	if err != nil {
-		return fmt.Errorf("error getting sse request: %v", err)
+		log.Errorf("error getting sse request: %v", err)
+		return
 	}
 
-	check, err := Client.Get(uri)
+	res, err := Client.Do(req)
 	if err != nil {
-		return nil
+		log.Errorf("error performing request for %s: %v", uri, err)
+		return
 	}
-	log.Debug(check.Status)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	res, err := Client.Do(req.WithContext(ctx))
-	if err != nil {
-		return fmt.Errorf("error performing request for %s: %v", uri, err)
-	}
-
-	log.Debugf("Response: %s", res.Status)
 
 	br := bufio.NewReader(res.Body)
 	defer res.Body.Close()
@@ -96,7 +87,8 @@ func Notify(uri string, evCh chan<- *Event) error {
 		bs, err := br.ReadBytes('\n')
 
 		if err != nil && err != io.EOF {
-			return err
+			log.Error(err.Error())
+			return
 		}
 		log.Debugf("Response: %s", bs)
 
@@ -127,5 +119,5 @@ func Notify(uri string, evCh chan<- *Event) error {
 		}
 	}
 
-	return nil
+	return
 }
