@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"time"
+	"context"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -68,7 +69,10 @@ func Notify(uri string, evCh chan<- *Event) error {
 		return fmt.Errorf("error getting sse request: %v", err)
 	}
 
-	res, err := Client.Do(req)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	res, err := Client.Do(req.WithContext(ctx))
 	if err != nil {
 		return fmt.Errorf("error performing request for %s: %v", uri, err)
 	}
