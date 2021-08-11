@@ -90,10 +90,10 @@ func startSmee(c *cli.Context) error {
 		}
 		defer resp.Body.Close()
 
-		log.Debugf("response Status:", resp.Status)
-		log.Debugf("response Headers:", resp.Header)
+		log.Debugf("response Status: %s", resp.Status)
+		log.Debugf("response Headers: %s", resp.Header)
 		rspbody, _ := ioutil.ReadAll(resp.Body)
-		log.Debugf("response Body:", string(rspbody))
+		log.Debugf("response Body: %s", string(rspbody))
 
 		log.Info("Successfully proxied webhook to target")
 	}
