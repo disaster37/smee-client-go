@@ -1,120 +1,80 @@
 package main
 
 import (
-	"bytes"
-	"crypto/hmac"
-	"crypto/sha1"
-	"encoding/hex"
-	"fmt"
-	"io/ioutil"
-	"log"
-	"net/http"
 	"os"
-	"strings"
+	"sort"
 
-	"github.com/buger/jsonparser"
-	flags "github.com/jessevdk/go-flags"
+	log "github.com/sirupsen/logrus"
+	"github.com/urfave/cli/v2"
+	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 )
 
-const (
-	VERSION = "1.0"
-)
+func run(args []string) error {
 
-// ValidMAC reports whether messageMAC is a valid HMAC tag for message.
-func ValidMAC(message, messageMAC, key []byte) bool {
-	mac := hmac.New(sha1.New, key)
-	mac.Write(message)
-	expectedMAC := mac.Sum(nil)
-	return hmac.Equal(messageMAC, expectedMAC)
-}
+	// Logger setting
+	log.SetOutput(os.Stdout)
 
-func hex2bytes(hexstr string) []byte {
-	src := []byte(hexstr)
-	dst := make([]byte, hex.DecodedLen(len(src)))
-	_, err := hex.Decode(dst, src)
-	if err != nil {
-		log.Fatal(err)
+	// CLI settings
+	app := cli.NewApp()
+	app.Usage = "smee-client that support proxy"
+	app.Version = "develop"
+	app.Flags = []cli.Flag{
+		&cli.BoolFlag{
+			Name:  "debug",
+			Usage: "Display debug output",
+		},
+		&cli.BoolFlag{
+			Name:  "no-color",
+			Usage: "No print color",
+		},
 	}
-	return dst
-}
+	app.Commands = []*cli.Command{
+		{
+			Name:  "start",
+			Usage: "Start smee-client",
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:  "url",
+					Usage: "URL of the webhook proxy service. Required. For exemple: https://smee.io/VyOocXe0HCKwlSj)",
+				},
+				&cli.StringFlag{
+					Name:  "target",
+					Usage: "Full URL (including protocol and path) of the target service the events will forwarded to. Required. For exemple: http://jenkins.mycompany.local:8080/github-webhook/",
+				},
+				&cli.StringFlag{
+					Name:  "secret",
+					Usage: "Secret to be used for HMAC-SHA1 secure hash calculation",
+				},
+			},
+			Action: startSmee,
+		},
+	}
 
-type Options struct {
-	Version []bool `short:"v" long:"version" description:"output the version number"`
-	URL     string `short:"u" long:"url" description:"URL of the webhook proxy service. Required." required:"yes"`
-	Target  string `short:"t" long:"target" description:"Full URL (including protocol and path) of the target service the events will forwarded to. Required." required:"yes"`
-	Secret  string `short:"s" long:"secret" description:"Secret to be used for HMAC-SHA1 secure hash calculation"`
-}
+	app.Before = func(c *cli.Context) error {
 
-var opts Options
-var parser = flags.NewParser(&opts, flags.HelpFlag)
+		if c.Bool("debug") {
+			log.SetLevel(log.DebugLevel)
+		}
+
+		if !c.Bool("no-color") {
+			formatter := new(prefixed.TextFormatter)
+			formatter.FullTimestamp = true
+			formatter.ForceFormatting = true
+			log.SetFormatter(formatter)
+		}
+
+		return nil
+	}
+
+	sort.Sort(cli.CommandsByName(app.Commands))
+
+	err := app.Run(args)
+	return err
+}
 
 func main() {
-	_, err := parser.Parse()
-
-	if len(opts.Version) > 0 {
-		fmt.Printf("version %s\n", VERSION)
-		os.Exit(0)
-	}
-
+	err := run(os.Args)
 	if err != nil {
-		flagsErr, ok := err.(*flags.Error)
-		if !ok {
-			os.Exit(1)
-		}
-		fmt.Fprintf(os.Stderr, "%s\n", flagsErr.Message)
-		os.Exit(0)
-	}
-
-	evCh := make(chan *Event)
-	go Notify(opts.URL, evCh)
-
-	for ev := range evCh {
-		if len(ev.Data) <= 2 {
-			continue
-		}
-
-		body, _, _, err := jsonparser.Get(ev.Data, "body")
-		if err != nil {
-			fmt.Printf("Error: no body found\n")
-			continue
-		}
-
-		if opts.Secret != "" {
-			signature, _, _, err := jsonparser.Get(ev.Data, "x-hub-signature")
-			if err != nil {
-				fmt.Printf("Error: no signature found\n")
-				continue
-			}
-			if string(signature[:5]) != "sha1=" {
-				fmt.Printf("Warning: Skipping checking. signature is not SHA1: %s\n", signature)
-				continue
-			} else {
-				if !ValidMAC([]byte(body), hex2bytes(string(signature[5:])), []byte(opts.Secret)) {
-					fmt.Printf("\nError: Invalid HMAC\n")
-					continue
-				}
-			}
-		}
-		fmt.Printf("Received %s", string(ev.Data))
-
-		req, err := http.NewRequest("POST", opts.Target, bytes.NewBuffer(body))
-		jsonparser.ObjectEach(ev.Data, func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
-			if strings.HasPrefix(string(key), "x-") || strings.ToLower(string(key)) == "content-type" {
-				req.Header.Set(string(key), string(value))
-			}
-			return nil
-		})
-
-		client := &http.Client{}
-		resp, err := client.Do(req)
-		if err != nil {
-			panic(err)
-		}
-		defer resp.Body.Close()
-
-		fmt.Println("response Status:", resp.Status)
-		fmt.Println("response Headers:", resp.Header)
-		rspbody, _ := ioutil.ReadAll(resp.Body)
-		fmt.Println("response Body:", string(rspbody))
+		log.Fatal(err)
 	}
 }
