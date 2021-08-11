@@ -23,7 +23,9 @@ var (
 )
 
 //Client is the default client used for requests.
-var Client = &http.Client{}
+var Client = &http.Client{
+	Timeout: time.Second * 10,
+}
 
 func liveReq(verb, uri string, body io.Reader) (*http.Request, error) {
 	req, err := GetReq(verb, uri, body)
