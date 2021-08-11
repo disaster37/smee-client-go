@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 //SSE name constants
@@ -79,6 +82,7 @@ func Notify(uri string, evCh chan<- *Event) error {
 		if err != nil && err != io.EOF {
 			return err
 		}
+		log.Debugf("Response: %s", bs)
 
 		if len(bs) < 2 {
 			continue
@@ -99,6 +103,10 @@ func Notify(uri string, evCh chan<- *Event) error {
 			evCh <- currEvent
 		}
 		if err == io.EOF {
+			// Re lauch routine to try to connect again
+			log.Warnf("We lost connection on smee.io, we wait 30s and try to reconnect on it")
+			time.Sleep(30 * time.Second)
+			go Notify(uri, evCh)
 			break
 		}
 	}

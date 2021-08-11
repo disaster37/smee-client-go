@@ -42,6 +42,8 @@ func startSmee(c *cli.Context) error {
 		return errors.New("--target parameter is required")
 	}
 
+	log.Info("smee-client started, we wait webhook")
+
 	evCh := make(chan *Event)
 	go Notify(c.String("url"), evCh)
 
