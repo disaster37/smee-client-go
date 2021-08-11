@@ -3,11 +3,11 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
 	"time"
-	"context"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -68,6 +68,12 @@ func Notify(uri string, evCh chan<- *Event) error {
 	if err != nil {
 		return fmt.Errorf("error getting sse request: %v", err)
 	}
+
+	check, err := Client.Get(uri)
+	if err != nil {
+		return nil
+	}
+	log.Debug(check.Status)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
