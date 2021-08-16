@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/buger/jsonparser"
 	log "github.com/sirupsen/logrus"
@@ -42,12 +43,37 @@ func startSmee(c *cli.Context) error {
 		return errors.New("--target parameter is required")
 	}
 
-	log.Info("smee-client started, we wait webhook")
+	client := &http.Client{}
+	if c.Duration("timeout") != 0 {
+		client.Timeout = c.Duration("timeout") * time.Second
+	}
 
 	evCh := make(chan *Event)
-	go Notify(c.String("url"), evCh)
+	go Notify(client, c.String("url"), evCh)
+
+	log.Infof("We proxy '%s' to '%s'", c.String("url"), c.String("target"))
 
 	for ev := range evCh {
+
+		// Handle error event
+		if ev.Err != nil {
+			switch ev.Err {
+			case ErrNilChan:
+				log.Errorf("You need to provide chan")
+				panic(ev.Err)
+			case ErrLostConnexion:
+				log.Warnf("We lost connexion on %s, we try to reconnect on it", c.String("url"))
+				time.Sleep(1 * time.Millisecond)
+				go Notify(client, c.String("url"), evCh)
+				break
+			default:
+				log.Errorf("Error appear: %s", ev.Err.Error())
+				time.Sleep(1 * time.Millisecond)
+				go Notify(client, c.String("url"), evCh)
+			}
+		}
+
+		// Handle data event
 		if len(ev.Data) <= 2 {
 			continue
 		}
@@ -74,8 +100,8 @@ func startSmee(c *cli.Context) error {
 				}
 			}
 		}
-		log.Debugf("Received %s", string(ev.Data))
 
+		// Call target to send event
 		req, err := http.NewRequest("POST", c.String("target"), bytes.NewBuffer(body))
 		jsonparser.ObjectEach(ev.Data, func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
 			if strings.HasPrefix(string(key), "x-") || strings.ToLower(string(key)) == "content-type" {

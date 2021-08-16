@@ -6,9 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
-
-	log "github.com/sirupsen/logrus"
 )
 
 //SSE name constants
@@ -19,16 +16,12 @@ const (
 
 var (
 	//ErrNilChan will be returned by Notify if it is passed a nil channel
-	ErrNilChan = fmt.Errorf("nil channel given")
+	ErrNilChan       = fmt.Errorf("nil channel given")
+	ErrLostConnexion = fmt.Errorf("we lost connexion")
 )
 
-//Client is the default client used for requests.
-var Client = &http.Client{
-	Timeout: time.Second * 10,
-}
-
 func liveReq(verb, uri string, body io.Reader) (*http.Request, error) {
-	req, err := GetReq(verb, uri, body)
+	req, err := http.NewRequest(verb, uri, body)
 	if err != nil {
 		return nil, err
 	}
@@ -43,35 +36,27 @@ type Event struct {
 	URI  string
 	Type []byte
 	Data []byte
-}
-
-//GetReq is a function to return a single request. It will be used by notify to
-//get a request and can be replaces if additional configuration is desired on
-//the request. The "Accept" header will necessarily be overwritten.
-var GetReq = func(verb, uri string, body io.Reader) (*http.Request, error) {
-	return http.NewRequest(verb, uri, body)
+	Err  error
 }
 
 //Notify takes the uri of an SSE stream and channel, and will send an Event
 //down the channel when recieved, until the stream is closed. It will then
 //close the stream. This is blocking, and so you will likely want to call this
 //in a new goroutine (via `go Notify(..)`)
-func Notify(uri string, evCh chan<- *Event) {
+func Notify(client *http.Client, uri string, evCh chan<- *Event) {
 	if evCh == nil {
 		panic(ErrNilChan)
 	}
 
-	log.Debug("Notify started")
-
 	req, err := liveReq("GET", uri, nil)
 	if err != nil {
-		log.Errorf("error getting sse request: %v", err)
+		evCh <- newErr(err)
 		return
 	}
 
-	res, err := Client.Do(req)
+	res, err := client.Do(req)
 	if err != nil {
-		log.Errorf("error performing request for %s: %v", uri, err)
+		evCh <- newErr(err)
 		return
 	}
 
@@ -85,11 +70,14 @@ func Notify(uri string, evCh chan<- *Event) {
 	for {
 		bs, err := br.ReadBytes('\n')
 
-		if err != nil && err != io.EOF {
-			log.Error(err.Error())
+		if err != nil {
+			if err != io.EOF {
+				evCh <- newErr(err)
+			} else {
+				evCh <- newErr(ErrLostConnexion)
+			}
 			return
 		}
-		log.Debugf("Response: %s", bs)
 
 		if len(bs) < 2 {
 			continue
@@ -101,7 +89,7 @@ func Notify(uri string, evCh chan<- *Event) {
 			continue
 		}
 
-		currEvent = &Event{URI: uri}
+		currEvent = newData(uri, nil, nil)
 		switch string(spl[0]) {
 		case eName:
 			currEvent.Type = bytes.TrimSpace(spl[1])
@@ -109,14 +97,22 @@ func Notify(uri string, evCh chan<- *Event) {
 			currEvent.Data = bytes.TrimSpace(spl[1])
 			evCh <- currEvent
 		}
-		if err == io.EOF {
-			// Re lauch routine to try to connect again
-			log.Warnf("We lost connection on smee.io, we wait 30s and try to reconnect on it")
-			time.Sleep(30 * time.Second)
-			go Notify(uri, evCh)
-			break
-		}
 	}
+}
 
-	return
+// newData return data event
+func newData(URI string, tType []byte, data []byte) *Event {
+	return &Event{
+		URI:  URI,
+		Type: tType,
+		Data: data,
+		Err:  nil,
+	}
+}
+
+// newErr return error event
+func newErr(err error) *Event {
+	return &Event{
+		Err: err,
+	}
 }
