@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/hex"
@@ -55,9 +56,20 @@ func startSmee(c *cli.Context) error {
 	}
 
 	// Check we can access on backend
-	_, err = client.Get(c.String("target"))
-	if err != nil {
-		return fmt.Errorf("Error when access on target %s: %s", c.String("target"), err.Error())
+	// Maybee we need to wait some time before backend start
+	ctx, cancel := context.WithTimeout(context.Background(), c.Duration("timeout")*time.Second)
+	defer cancel()
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("We can't access on target during %d seconds", c.Duration("timeout"))
+		default:
+			_, err = client.Get(c.String("target"))
+			if err != nil {
+				log.Warnf("Error when access on target %s: %s", c.String("target"), err.Error())
+				time.Sleep(1 * time.Second)
+			}
+		}
 	}
 
 	// Disable timeout for live stream
