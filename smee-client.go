@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
@@ -139,19 +138,13 @@ func startSmee(c *cli.Context) error {
 		})
 
 		client := &http.Client{}
-		resp, err := client.Do(req)
+		_, err = client.Do(req)
 		if err != nil {
 			log.Errorf("Error when call target: %s", err.Error())
 			continue
 		}
-		defer resp.Body.Close()
 
-		log.Debugf("response Status: %s", resp.Status)
-		log.Debugf("response Headers: %s", resp.Header)
-		rspbody, _ := ioutil.ReadAll(resp.Body)
-		log.Debugf("response Body: %s", string(rspbody))
-
-		log.Info("Successfully proxied webhook to target")
+		log.Infof("Successfully proxied webhook to target: %s", string(body))
 	}
 
 	return nil
