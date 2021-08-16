@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/hex"
@@ -57,18 +56,20 @@ func startSmee(c *cli.Context) error {
 
 	// Check we can access on backend
 	// Maybee we need to wait some time before backend start
+
 	wait := time.After(c.Duration("timeout") * time.Second)
-	for {
+	loop := true
+	for loop {
 		select {
 		case <-wait:
-			return fmt.Errorf("We can't access on target during %d seconds", c.Duration("timeout"))
+			return fmt.Errorf("We can't access on target during %d seconds", c.Int64("timeout"))
 		default:
 			_, err = client.Get(c.String("target"))
 			if err != nil {
 				log.Warnf("Error when access on target %s: %s", c.String("target"), err.Error())
 				time.Sleep(1 * time.Second)
 			} else {
-				break
+				loop = false
 			}
 		}
 	}
