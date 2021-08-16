@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"sort"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -44,6 +45,11 @@ func run(args []string) error {
 				&cli.StringFlag{
 					Name:  "secret",
 					Usage: "Secret to be used for HMAC-SHA1 secure hash calculation",
+				},
+				&cli.DurationFlag{
+					Name:  "timeout",
+					Usage: "The timeout to wait when access on URL and target",
+					Value: 120 * time.Second,
 				},
 			},
 			Action: startSmee,

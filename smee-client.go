@@ -6,6 +6,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -43,11 +44,24 @@ func startSmee(c *cli.Context) error {
 		return errors.New("--target parameter is required")
 	}
 
-	client := &http.Client{}
-	if c.Duration("timeout") != 0 {
-		client.Timeout = c.Duration("timeout") * time.Second
+	client := &http.Client{
+		Timeout: c.Duration("timeout") * time.Second,
 	}
 
+	// Check we can access on URL
+	_, err := client.Get(c.String("url"))
+	if err != nil {
+		return fmt.Errorf("Error when access on URL %s: %s", c.String("url"), err.Error())
+	}
+
+	// Check we can access on backend
+	_, err = client.Get(c.String("target"))
+	if err != nil {
+		return fmt.Errorf("Error when access on target %s: %s", c.String("target"), err.Error())
+	}
+
+	// Disable timeout for live stream
+	client.Timeout = 0
 	evCh := make(chan *Event)
 	go Notify(client, c.String("url"), evCh)
 
@@ -60,7 +74,7 @@ func startSmee(c *cli.Context) error {
 			switch ev.Err {
 			case ErrNilChan:
 				log.Errorf("You need to provide chan")
-				panic(ev.Err)
+				return ev.Err
 			case ErrLostConnexion:
 				log.Warnf("We lost connexion on %s, we try to reconnect on it", c.String("url"))
 				time.Sleep(1 * time.Millisecond)
