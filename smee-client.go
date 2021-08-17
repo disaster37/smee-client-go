@@ -55,13 +55,13 @@ func startSmee(c *cli.Context) error {
 
 	// Check we can access on backend
 	// Maybee we need to wait some time before backend start
-
-	wait := time.After(c.Duration("timeout") * time.Second)
+	timeout := c.Duration("timeout") * time.Second
+	wait := time.After(timeout)
 	loop := true
 	for loop {
 		select {
 		case <-wait:
-			return fmt.Errorf("We can't access on target during %d seconds", c.Int64("timeout"))
+			return fmt.Errorf("We can't access on target during %d seconds", timeout)
 		default:
 			_, err = client.Get(c.String("target"))
 			if err != nil {

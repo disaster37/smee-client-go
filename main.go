@@ -49,7 +49,7 @@ func run(args []string) error {
 				&cli.DurationFlag{
 					Name:  "timeout",
 					Usage: "The timeout to wait when access on URL and target",
-					Value: 120 * time.Second,
+					Value: time.Duration(120),
 				},
 			},
 			Action: startSmee,
