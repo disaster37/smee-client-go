@@ -71,7 +71,7 @@ func Notify(client *http.Client, uri string, evCh chan<- *Event) {
 		bs, err := br.ReadBytes('\n')
 
 		if err != nil {
-			if err != io.EOF {
+			if (err != io.EOF) && (err != io.ErrUnexpectedEOF) {
 				evCh <- newErr(err)
 			} else {
 				evCh <- newErr(ErrLostConnexion)
