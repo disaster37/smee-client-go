@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -65,8 +67,6 @@ func Notify(client *http.Client, uri string, evCh chan<- *Event) {
 	br := bufio.NewReader(res.Body)
 	defer res.Body.Close()
 
-	delim := []byte{':', ' '}
-
 	var currEvent *Event
 
 	for {
@@ -87,21 +87,22 @@ func Notify(client *http.Client, uri string, evCh chan<- *Event) {
 			continue
 		}
 
-		spl := bytes.Split(bs, delim)
-
-		if len(spl) < 2 {
-			log.Debugf("Read byte: Continue because spl < 2: %s", string(bs))
+		// extract data or event type
+		re := regexp.MustCompile("^(\\w+):\\s+(.*)$")
+		match := re.FindStringSubmatch(string(bs))
+		if len(match) < 3 {
+			log.Debugf("Bad event: %s", string(bs))
 			continue
 		}
 
 		currEvent = newData(uri, nil, nil)
-		switch string(spl[0]) {
+		switch match[1] {
 		case eName:
-			currEvent.Type = bytes.TrimSpace(spl[1])
+			currEvent.Type = bytes.TrimSpace([]byte(match[2]))
 			log.Debugf("Found type: %s", currEvent.Type)
 			break
 		case dName:
-			currEvent.Data = bytes.TrimSpace(spl[1])
+			currEvent.Data = bytes.TrimSpace([]byte(match[2]))
 			log.Debugf("Found data: %s", currEvent.Data)
 			evCh <- currEvent
 			break
