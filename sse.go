@@ -81,7 +81,7 @@ func Notify(client *http.Client, uri string, evCh chan<- *Event) {
 		}
 
 		if len(bs) < 2 {
-			log.Debugf("Read byte: Continue because bs < 2: %s", event)
+			log.Debugf("Read byte: Continue because bs < 2: %s", string(bs))
 			continue
 		}
 
