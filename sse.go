@@ -85,7 +85,7 @@ func Notify(client *http.Client, uri string, evCh chan<- *Event) {
 			continue
 		}
 
-		event := strings.TrimSuffix(string(bs), "\\n")
+		event := strings.TrimSuffix(string(bs), "\n")
 		log.Debugf("Read bytes: %s", string(event))
 
 		// extract data or event type
