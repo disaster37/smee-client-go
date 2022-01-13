@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -79,18 +80,19 @@ func Notify(client *http.Client, uri string, evCh chan<- *Event) {
 			return
 		}
 
-		log.Debugf("Read bytes: %s", string(bs))
-
 		if len(bs) < 2 {
-			log.Debugf("Read byte: Continue because bs < 2: %s", string(bs))
+			log.Debugf("Read byte: Continue because bs < 2: %s", event)
 			continue
 		}
 
+		event := strings.TrimSuffix(string(bs), "\\n")
+		log.Debugf("Read bytes: %s", string(event))
+
 		// extract data or event type
 		re := regexp.MustCompile("^(\\w+):\\s+(.*)$")
-		match := re.FindStringSubmatch(string(bs))
+		match := re.FindStringSubmatch(event)
 		if len(match) < 3 {
-			log.Debugf("Bad event: `%s`", string(bs))
+			log.Debugf("Bad event: `%s`", event)
 			continue
 		}
 
