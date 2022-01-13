@@ -90,7 +90,7 @@ func Notify(client *http.Client, uri string, evCh chan<- *Event) {
 		re := regexp.MustCompile("^(\\w+):\\s+(.*)$")
 		match := re.FindStringSubmatch(string(bs))
 		if len(match) < 3 {
-			log.Debugf("Bad event: %s", string(bs))
+			log.Debugf("Bad event: `%s`", string(bs))
 			continue
 		}
 
