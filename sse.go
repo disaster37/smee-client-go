@@ -71,7 +71,6 @@ func Notify(client *http.Client, uri string, evCh chan<- *Event) {
 
 	for {
 		bs, err := br.ReadBytes('\n')
-
 		if err != nil {
 			if (err != io.EOF) && (err != io.ErrUnexpectedEOF) {
 				evCh <- newErr(err)
@@ -80,6 +79,8 @@ func Notify(client *http.Client, uri string, evCh chan<- *Event) {
 			}
 			return
 		}
+
+		log.Debugf("Read bytes: %s", string(bs))
 
 		if len(bs) < 2 {
 			log.Debugf("Read byte: Continue because bs < 2: %s", string(bs))
