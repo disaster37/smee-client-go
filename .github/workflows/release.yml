@@ -25,13 +25,13 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@v2
       with:
-        go-version: '1.16.7' # The Go version to download (if necessary) and use.
+        go-version: '1.17' # The Go version to download (if necessary) and use.
     
     # Install all the dependencies
     - name: Install dependencies
       run: |
         go version
-        go get -u golang.org/x/lint/golint
+        go install golang.org/x/lint/golint
         
     # Run build of the application
     - name: Run build
@@ -55,7 +55,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v2
         with:
-          go-version: '1.16.7' # The Go version to download (if necessary) and use.
+          go-version: '1.17' # The Go version to download (if necessary) and use.
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v2
         with:

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+
+	log "github.com/sirupsen/logrus"
 )
 
 //SSE name constants
@@ -80,12 +82,14 @@ func Notify(client *http.Client, uri string, evCh chan<- *Event) {
 		}
 
 		if len(bs) < 2 {
+			log.Debugf("Read byte: Continue because bs < 2: %s", string(bs))
 			continue
 		}
 
 		spl := bytes.Split(bs, delim)
 
 		if len(spl) < 2 {
+			log.Debugf("Read byte: Continue because spl < 2: %s", string(bs))
 			continue
 		}
 
@@ -93,9 +97,13 @@ func Notify(client *http.Client, uri string, evCh chan<- *Event) {
 		switch string(spl[0]) {
 		case eName:
 			currEvent.Type = bytes.TrimSpace(spl[1])
+			log.Debugf("Found type: %s", currEvent.Type)
+			break
 		case dName:
 			currEvent.Data = bytes.TrimSpace(spl[1])
+			log.Debugf("Found data: %s", currEvent.Data)
 			evCh <- currEvent
+			break
 		}
 	}
 }
