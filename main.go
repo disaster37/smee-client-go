@@ -51,6 +51,10 @@ func run(args []string) error {
 					Usage: "The timeout to wait when access on URL and target. Default to 120s",
 					Value: 120 * time.Second,
 				},
+				&cli.BoolFlag{
+					Name:  "self-signed-certificate",
+					Usage: "Disable the TLS certificate check only on target",
+				},
 			},
 			Action: startSmee,
 		},

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/hmac"
 	"crypto/sha1"
+	"crypto/tls"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -43,12 +44,21 @@ func startSmee(c *cli.Context) error {
 		return errors.New("--target parameter is required")
 	}
 
-	client := &http.Client{
+	clientSmee := &http.Client{
+		Timeout: c.Duration("timeout") * time.Second,
+	}
+	clientBackend := &http.Client{
 		Timeout: c.Duration("timeout") * time.Second,
 	}
 
+	if c.Bool("self-signed-certificate") {
+		clientBackend.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+	}
+
 	// Check we can access on URL
-	_, err := client.Get(c.String("url"))
+	_, err := clientSmee.Get(c.String("url"))
 	if err != nil {
 		return fmt.Errorf("Error when access on URL %s: %s", c.String("url"), err.Error())
 	}
@@ -62,7 +72,7 @@ func startSmee(c *cli.Context) error {
 		case <-wait:
 			return fmt.Errorf("We can't access on target during %d seconds", c.Duration("timeout")/time.Second)
 		default:
-			_, err = client.Get(c.String("target"))
+			_, err = clientBackend.Get(c.String("target"))
 			if err != nil {
 				log.Warnf("Error when access on target %s: %s", c.String("target"), err.Error())
 				time.Sleep(1 * time.Second)
@@ -73,9 +83,9 @@ func startSmee(c *cli.Context) error {
 	}
 
 	// Disable timeout for live stream
-	client.Timeout = 0
+	clientSmee.Timeout = 0
 	evCh := make(chan *Event)
-	go Notify(client, c.String("url"), evCh)
+	go Notify(clientSmee, c.String("url"), evCh)
 
 	log.Infof("We proxy '%s' to '%s'", c.String("url"), c.String("target"))
 
@@ -90,12 +100,12 @@ func startSmee(c *cli.Context) error {
 			case ErrLostConnexion:
 				log.Warnf("We lost connexion on %s, we try to reconnect on it", c.String("url"))
 				time.Sleep(1 * time.Millisecond)
-				go Notify(client, c.String("url"), evCh)
+				go Notify(clientSmee, c.String("url"), evCh)
 				break
 			default:
 				log.Errorf("Error appear: %s", ev.Err.Error())
 				time.Sleep(1 * time.Millisecond)
-				go Notify(client, c.String("url"), evCh)
+				go Notify(clientSmee, c.String("url"), evCh)
 			}
 		}
 
@@ -136,8 +146,7 @@ func startSmee(c *cli.Context) error {
 			return nil
 		})
 
-		client := &http.Client{}
-		_, err = client.Do(req)
+		_, err = clientBackend.Do(req)
 		if err != nil {
 			log.Errorf("Error when call target: %s", err.Error())
 			continue
