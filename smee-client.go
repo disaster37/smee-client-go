@@ -142,12 +142,16 @@ func startSmee(c *cli.Context) error {
 			log.Errorf("Error when create request: %s", err.Error())
 			continue
 		}
-		jsonparser.ObjectEach(ev.Data, func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
+		err = jsonparser.ObjectEach(ev.Data, func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
 			if strings.HasPrefix(string(key), "x-") || strings.ToLower(string(key)) == "content-type" {
 				req.Header.Set(string(key), string(value))
 			}
 			return nil
 		})
+		if err != nil {
+			log.Errorf("Error when set header: %s", err.Error())
+			continue
+		}
 
 		_, err = clientBackend.Do(req)
 		if err != nil {

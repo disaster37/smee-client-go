@@ -12,7 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-//SSE name constants
+// SSE name constants
 const (
 	eName = "event"
 	dName = "data"
@@ -35,7 +35,7 @@ func liveReq(verb, uri string, body io.Reader) (*http.Request, error) {
 	return req, nil
 }
 
-//Event is a go representation of an http server-sent event
+// Event is a go representation of an http server-sent event
 type Event struct {
 	URI  string
 	Type []byte
@@ -43,10 +43,10 @@ type Event struct {
 	Err  error
 }
 
-//Notify takes the uri of an SSE stream and channel, and will send an Event
-//down the channel when recieved, until the stream is closed. It will then
-//close the stream. This is blocking, and so you will likely want to call this
-//in a new goroutine (via `go Notify(..)`)
+// Notify takes the uri of an SSE stream and channel, and will send an Event
+// down the channel when recieved, until the stream is closed. It will then
+// close the stream. This is blocking, and so you will likely want to call this
+// in a new goroutine (via `go Notify(..)`)
 func Notify(client *http.Client, uri string, evCh chan<- *Event) {
 	if evCh == nil {
 		panic(ErrNilChan)
@@ -89,7 +89,7 @@ func Notify(client *http.Client, uri string, evCh chan<- *Event) {
 		log.Debugf("Read bytes: %s", string(event))
 
 		// extract data or event type
-		re := regexp.MustCompile("^(\\w+):\\s+(.*)$")
+		re := regexp.MustCompile(`^(\\w+):\\s+(.*)$`)
 		match := re.FindStringSubmatch(event)
 		if len(match) < 3 {
 			log.Debugf("Bad event: `%s`", event)
@@ -101,12 +101,10 @@ func Notify(client *http.Client, uri string, evCh chan<- *Event) {
 		case eName:
 			currEvent.Type = bytes.TrimSpace([]byte(match[2]))
 			log.Debugf("Found type: %s", currEvent.Type)
-			break
 		case dName:
 			currEvent.Data = bytes.TrimSpace([]byte(match[2]))
 			log.Debugf("Found data: %s", currEvent.Data)
 			evCh <- currEvent
-			break
 		}
 	}
 }
