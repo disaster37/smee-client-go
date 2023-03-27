@@ -75,7 +75,7 @@ func startSmee(c *cli.Context) error {
 			_, err = clientBackend.Get(c.String("target"))
 			if err != nil {
 				log.Warnf("Error when access on target %s: %s", c.String("target"), err.Error())
-				time.Sleep(1 * time.Second)
+				time.Sleep(30 * time.Second)
 			} else {
 				loop = false
 			}
@@ -103,7 +103,7 @@ func startSmee(c *cli.Context) error {
 				go Notify(clientSmee, c.String("url"), evCh)
 			default:
 				log.Errorf("Error appear: %s", ev.Err.Error())
-				time.Sleep(1 * time.Millisecond)
+				time.Sleep(c.Duration("timeout"))
 				go Notify(clientSmee, c.String("url"), evCh)
 			}
 		}
