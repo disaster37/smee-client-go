@@ -14,7 +14,7 @@ import (
 
 	"github.com/buger/jsonparser"
 	log "github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
+	cli "github.com/urfave/cli/v2"
 )
 
 // ValidMAC reports whether messageMAC is a valid HMAC tag for message.
@@ -60,7 +60,7 @@ func startSmee(c *cli.Context) error {
 	// Check we can access on URL
 	_, err := clientSmee.Get(c.String("url"))
 	if err != nil {
-		return fmt.Errorf("Error when access on URL %s: %s", c.String("url"), err.Error())
+		return fmt.Errorf("error when access on URL %s: %s", c.String("url"), err.Error())
 	}
 
 	// Check we can access on backend
@@ -70,7 +70,7 @@ func startSmee(c *cli.Context) error {
 	for loop {
 		select {
 		case <-wait:
-			return fmt.Errorf("We can't access on target during %d seconds", c.Duration("timeout")/time.Second)
+			return fmt.Errorf("we can't access on target during %d seconds", c.Duration("timeout")/time.Second)
 		default:
 			_, err = clientBackend.Get(c.String("target"))
 			if err != nil {
@@ -99,9 +99,8 @@ func startSmee(c *cli.Context) error {
 				return ev.Err
 			case ErrLostConnexion:
 				log.Warnf("We lost connexion on %s, we try to reconnect on it", c.String("url"))
-				time.Sleep(1 * time.Millisecond)
+				time.Sleep(c.Duration("timeout"))
 				go Notify(clientSmee, c.String("url"), evCh)
-				break
 			default:
 				log.Errorf("Error appear: %s", ev.Err.Error())
 				time.Sleep(1 * time.Millisecond)
@@ -139,6 +138,10 @@ func startSmee(c *cli.Context) error {
 
 		// Call target to send event
 		req, err := http.NewRequest("POST", c.String("target"), bytes.NewBuffer(body))
+		if err != nil {
+			log.Errorf("Error when create request: %s", err.Error())
+			continue
+		}
 		jsonparser.ObjectEach(ev.Data, func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
 			if strings.HasPrefix(string(key), "x-") || strings.ToLower(string(key)) == "content-type" {
 				req.Header.Set(string(key), string(value))
