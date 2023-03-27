@@ -158,6 +158,4 @@ func startSmee(c *cli.Context) error {
 			log.Infof("Successfully proxied webhook to target: %s", string(body))
 		}
 	}
-
-	return nil
 }
