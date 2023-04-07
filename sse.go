@@ -89,7 +89,7 @@ func Notify(client *http.Client, uri string, evCh chan<- *Event) {
 		log.Debugf("Read bytes: %s", string(event))
 
 		// extract data or event type
-		re := regexp.MustCompile(`^(\\w+):\\s+(.*)$`)
+		re := regexp.MustCompile(`^(\w+):\s+(.*)$`)
 		match := re.FindStringSubmatch(event)
 		if len(match) < 3 {
 			log.Debugf("Bad event: `%s`", event)
